@@ -1,0 +1,53 @@
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Env & secrets
+.env.*.local
+*.pem
+*.key
+sites/*/site_config.json
+
+# Node
+node_modules/
+dist/
+build/
+.npm
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Python / Frappe bench
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+backend/frappe-bench/
+!backend/.gitkeep
+
+# Frappe sites & assets
+sites/
+assets/
+logs/
+*.log
+
+# Docker
+docker/backups/*.sql
+
+# Archives
+*.zip
+*.tar.gz
+
+# Windows
+$RECYCLE.BIN/
+config.bat
+.env

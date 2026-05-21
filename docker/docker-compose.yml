@@ -1,0 +1,121 @@
+# LabProject - Enterprise dev stack (Linux-first via WSL2 + Docker Desktop)
+# Data layer runs in Docker; Frappe bench runs in WSL for hot-reload and custom apps.
+# Optional: docker compose --profile full up -d for containerized Frappe (CI/prod parity)
+
+name: labproject
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
+services:
+  db:
+    image: mariadb:10.6
+    container_name: labproject-mariadb
+    restart: unless-stopped
+    logging: *default-logging
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --skip-character-set-client-handshake
+      - --skip-innodb-read-only-compressed
+    environment:
+      MYSQL_ROOT_PASSWORD: admin
+      MYSQL_DATABASE: lab_localhost
+    volumes:
+      - mariadb-data:/var/lib/mysql
+      - ./config/mariadb.cnf:/etc/mysql/conf.d/custom.cnf:ro
+    ports:
+      - "3307:3306"
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  redis-cache:
+    image: redis:7-alpine
+    container_name: labproject-redis-cache
+    restart: unless-stopped
+    logging: *default-logging
+    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis-cache-data:/data
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  redis-queue:
+    image: redis:7-alpine
+    container_name: labproject-redis-queue
+    restart: unless-stopped
+    logging: *default-logging
+    volumes:
+      - redis-queue-data:/data
+    ports:
+      - "6380:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # Optional full Frappe stack (profile: full) - production parity / demos
+  frappe:
+    profiles: ["full"]
+    image: frappe/bench:latest
+    container_name: labproject-frappe
+    restart: unless-stopped
+    logging: *default-logging
+    depends_on:
+      db:
+        condition: service_healthy
+      redis-cache:
+        condition: service_healthy
+      redis-queue:
+        condition: service_healthy
+    environment:
+      - SHELL=/bin/bash
+    volumes:
+      - ../backend/frappe-bench:/workspace/frappe-bench
+      - ../apps:/workspace/apps:ro
+      - frappe-logs:/workspace/logs
+    working_dir: /workspace/frappe-bench
+    ports:
+      - "8000:8000"
+      - "9000:9000"
+    command: >
+      bash -c "bench start"
+
+  backup:
+    profiles: ["backup"]
+    image: mariadb:10.6
+    container_name: labproject-backup
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./backups:/backups
+      - mariadb-data:/var/lib/mysql:ro
+    entrypoint: >
+      bash -c "mysqldump -h db -u root -padmin --all-databases > /backups/labproject-$$(date +%Y%m%d-%H%M%S).sql && echo Backup done"
+
+volumes:
+  mariadb-data:
+    name: labproject-mariadb-data
+  redis-cache-data:
+    name: labproject-redis-cache-data
+  redis-queue-data:
+    name: labproject-redis-queue-data
+  frappe-logs:
+    name: labproject-frappe-logs
+
+networks:
+  default:
+    name: labproject-network

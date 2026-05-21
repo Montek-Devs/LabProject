@@ -1,0 +1,20 @@
+{
+  "name": "labproject",
+  "version": "0.1.0",
+  "private": true,
+  "description": "LabProject - Frappe + React enterprise dev environment",
+  "scripts": {
+    "dev": "concurrently -n docker,frappe,react -c blue,magenta,green \"npm run dev:docker\" \"npm run dev:frappe\" \"npm run dev:react\"",
+    "dev:docker": "powershell -ExecutionPolicy Bypass -File scripts/03-setup-docker.ps1",
+    "dev:frappe": "wsl -d Ubuntu -e bash -lc \"cd /mnt/c/LabProject/backend/frappe-bench && bench start\"",
+    "dev:react": "cd frontend && npm run dev",
+    "stop": "cd docker && docker compose down",
+    "setup": "powershell -ExecutionPolicy Bypass -File scripts/setup-all.ps1",
+    "setup:windows": "powershell -ExecutionPolicy Bypass -File scripts/01-setup-windows.ps1",
+    "setup:wsl": "wsl -d Ubuntu bash /mnt/c/LabProject/scripts/02-setup-wsl.sh",
+    "validate": "powershell -ExecutionPolicy Bypass -File scripts/validate.ps1"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0"
+  }
+}
